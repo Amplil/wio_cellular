@@ -1,0 +1,64 @@
+/*
+ * grove-gps.ino
+ * Copyright (C) Seeed K.K.
+ * MIT License
+ */
+
+#include <Adafruit_TinyUSB.h>
+#include <WioCellular.h>
+
+void setup() {
+  Serial.begin(115200);
+  {
+    const auto start = millis();
+    while (!Serial && millis() - start < 5000) {
+      delay(2);
+    }
+  }
+  Serial.println();
+  Serial.println();
+
+  WioCellular.begin();
+  digitalWrite(PIN_VGROVE_ENABLE, VGROVE_ENABLE_ON);
+  delay(2 + 2);
+
+  GpsBegin();
+}
+
+void loop() {
+  const auto data = GpsRead();
+  if (data != NULL && strncmp(data, "$GPGGA,", 7) == 0) {
+    Serial.println(data);
+  }
+}
+
+#define GPS_OVERFLOW_STRING "OVERFLOW"
+
+char GpsData[100];
+int GpsDataLength;
+
+void GpsBegin() {
+  Serial1.begin(9600);
+  GpsDataLength = 0;
+}
+
+const char* GpsRead() {
+  while (true) {
+    const auto data = Serial1.read();
+    if (data < 0) return NULL;
+    if (data == '\r') continue;
+    if (data == '\n') {
+      GpsData[GpsDataLength] = '\0';
+      GpsDataLength = 0;
+      return GpsData;
+    }
+
+    if (GpsDataLength > (int)sizeof(GpsData) - 1) {  // Overflow
+      GpsDataLength = 0;
+      return GPS_OVERFLOW_STRING;
+    }
+    GpsData[GpsDataLength++] = data;
+  }
+
+  return NULL;
+}
