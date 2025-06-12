@@ -55,16 +55,18 @@ void setup() {
 }
 
 void loop() {
-  // Example: Send a test message every 5 seconds
+  // Example: Request engine RPM every 5 seconds using OBD-II
   static unsigned long lastSend = 0;
   if(millis() - lastSend > 5000) {
-    unsigned char testData[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
-    can.send(0x123, 0, 0, 8, testData);
-    Serial.println("Sent test CAN message (ID: 0x123)");
+    // OBD-II request for Engine RPM (PID 0x0C)
+    // Format: [Number of additional bytes, Mode, PID, unused bytes...]
+    unsigned char rpmRequest[8] = {0x02, 0x01, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00};
+    can.send(0x7DF, 0, 0, 8, rpmRequest);  // 0x7DF is broadcast request ID
+    Serial.println("Sent OBD-II Engine RPM request (PID: 0x0C)");
     lastSend = millis();
   }
   
-  // Listen for incoming CAN messages
+  // Listen for OBD-II responses (Engine RPM and other data)
   unsigned long id = 0;
   unsigned char data[8];
   if(can.receive(&id, data)) {
@@ -79,9 +81,19 @@ void loop() {
       if(i < 7) Serial.print(" ");
     }
     Serial.println();
+    
+    // Check if this is an OBD-II response for Engine RPM (PID 0x0C)
+    if((id >= 0x7E8 && id <= 0x7EF) && data[1] == 0x41 && data[2] == 0x0C) {
+      // Calculate RPM: (A*256 + B) / 4
+      // A = data[3], B = data[4]
+      unsigned int rpm = ((data[3] * 256) + data[4]) / 4;
+      Serial.print("Engine RPM: ");
+      Serial.print(rpm);
+      Serial.println(" rpm");
+    }
   }
   // Optional: Enable debug mode by sending commands through Serial monitor
   // Uncomment the following line to enable debug mode
-  // can.debugMode();
+  can.debugMode();
 
 }
