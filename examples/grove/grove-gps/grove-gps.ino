@@ -23,6 +23,7 @@ void setup() {
   delay(2 + 2);
 
   GpsBegin();
+  Serial.println("Grove GPS Module for Wio BG770A");
 }
 
 void loop() {
